@@ -1,0 +1,54 @@
+# ========================================
+# MedLabAgent System - H2 Demo Profile
+# ========================================
+# 用于演示和开发环境，使用内存数据库，无需外部 PostgreSQL
+
+spring:
+  application:
+    name: medlab-agent-system
+
+  # H2 Database Configuration (内存数据库)
+  datasource:
+    url: jdbc:h2:mem:medlab_db
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      connection-timeout: 3000
+      maximum-pool-size: 5
+
+  # JPA/Hibernate Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop # 每次启动创建新表，关闭时删除
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  # H2 Console (用于开发调试)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # Web Configuration
+  web:
+    cors:
+      allowed-origins: "*"
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.medlab: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

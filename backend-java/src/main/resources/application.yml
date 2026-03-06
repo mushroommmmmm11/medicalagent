@@ -1,0 +1,77 @@
+# ========================================
+# MedLabAgent System - Application Configuration
+# ========================================
+
+spring:
+  application:
+    name: medlab-agent-system
+
+  # Database Configuration (Optional - will use H2 if PostgreSQL unavailable)
+  datasource:
+    url: jdbc:postgresql://localhost:5432/medlab_db
+    username: medlab_user
+    password: medlab_password
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 3000
+      maximum-pool-size: 5
+
+  # JPA/Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Web Configuration
+  web:
+    cors:
+      allowed-origins: "*"
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      max-age: 3600
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.medlab: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/medlab-agent.log
+
+# AI Service Configuration
+ai:
+  # Ollama Configuration
+  ollama:
+    base-url: http://localhost:11434
+    model: llama2
+    temperature: 0.7
+    max-tokens: 1000
+
+  # Bailian Qianwen Configuration
+  bailian:
+    api-key: sk-7abf8a7f73354b7583e99596c5170d83
+    model: qwen-turbo
+    base-url: https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation
+    temperature: 0.7
+    top-p: 0.95
+    max-tokens: 2000
+    timeout: 60000
+
+# External Services
+services:
+  ocr:
+    base-url: http://localhost:8000
+    endpoint: /api/v1/ocr
+    timeout: 30000
