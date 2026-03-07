@@ -1,6 +1,6 @@
 package com.medlab.controller;
 
-import com.medlab.agent.BailianMedicalAgent;
+import com.medlab.agent.AgentFuncRealize;
 import com.medlab.service.KnowledgeService;
 import com.medlab.service.StorageService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +21,7 @@ import java.util.Map;
  * 2. 调用相应的服务进行业务处理
  * 3. 返回结果给客户端
  * 4. 错误处理和异常返回
+ * 5.前端与后端连接的桥梁，提供AI智能体相关的API接口
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -28,7 +29,7 @@ import java.util.Map;
 public class AgentController {
     
     @Autowired
-    private BailianMedicalAgent bailianMedicalAgent;
+    private AgentFuncRealize agentFuncRealize;
     
     @Autowired
     private KnowledgeService knowledgeService;
@@ -59,7 +60,7 @@ public class AgentController {
     public ResponseEntity<Map<String, String>> analyzeReport(
             @RequestParam String reportContent) {
         try {
-            String analysis = bailianMedicalAgent.analyzeReport(reportContent);
+            String analysis = agentFuncRealize.analyzeReport(reportContent);
             
             Map<String, String> response = new HashMap<>();
             response.put("status", "success");
@@ -84,7 +85,7 @@ public class AgentController {
     public ResponseEntity<Map<String, String>> chat(
             @RequestParam String userQuery) {
         try {
-            String aiResponse = bailianMedicalAgent.chat(userQuery);
+            String aiResponse = agentFuncRealize.chat(userQuery);
             
             Map<String, String> result = new HashMap<>();
             result.put("status", "success");
@@ -108,7 +109,7 @@ public class AgentController {
     public ResponseEntity<Map<String, String>> getDiagnosisSuggestion(
             @RequestParam String symptoms) {
         try {
-            String suggestion = bailianMedicalAgent.getDiagnosisSuggestion(symptoms);
+            String suggestion = agentFuncRealize.getDiagnosisSuggestion(symptoms);
             
             Map<String, String> result = new HashMap<>();
             result.put("status", "success");
@@ -132,7 +133,7 @@ public class AgentController {
     public ResponseEntity<Map<String, String>> getMedicalKnowledge(
             @RequestParam String topic) {
         try {
-            String knowledge = bailianMedicalAgent.getMedicalKnowledge(topic);
+            String knowledge = agentFuncRealize.getMedicalKnowledge(topic);
             
             Map<String, String> result = new HashMap<>();
             result.put("status", "success");
@@ -156,7 +157,7 @@ public class AgentController {
     public ResponseEntity<Map<String, String>> explainMedicalTerm(
             @RequestParam String term) {
         try {
-            String explanation = bailianMedicalAgent.explainMedicalTerm(term);
+            String explanation = agentFuncRealize.explainMedicalTerm(term);
             
             Map<String, String> result = new HashMap<>();
             result.put("status", "success");

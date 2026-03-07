@@ -17,7 +17,7 @@ import com.medlab.tools.LabTools;
  */
 @Slf4j
 @Component
-public class BailianMedicalAgent implements MedicalAgent {
+public class AgentFuncRealize implements MedicalAgent {
     
     @Autowired
     private BailianQianwenService bailianService;
