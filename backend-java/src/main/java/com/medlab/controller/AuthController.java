@@ -1,0 +1,69 @@
+package com.medlab.controller;
+
+import com.medlab.dto.request.LoginRequest;
+import com.medlab.dto.request.RegisterRequest;
+import com.medlab.dto.response.ApiResponse;
+import com.medlab.dto.response.AuthResponse;
+import com.medlab.service.AuthService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
+import java.util.stream.Collectors;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/v1/auth")
+// 移除这里的 @CrossOrigin，交给 SecurityConfig 统一管理
+public class AuthController {
+
+    @Autowired
+    private AuthService authService;
+
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<AuthResponse>> register(
+            @Valid @RequestBody RegisterRequest request, BindingResult bindingResult) {
+        
+        // 如果参数校验失败，直接打印具体原因并返回 400
+        if (bindingResult.hasErrors()) {
+            String errorMsg = bindingResult.getFieldErrors().stream()
+                    .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                    .collect(Collectors.joining(", "));
+            log.error("注册参数校验失败: {}", errorMsg);
+            return ResponseEntity.badRequest().body(ApiResponse.error("400", errorMsg));
+        }
+
+        try {
+            AuthResponse response = authService.register(request);
+            return ResponseEntity.ok(ApiResponse.success(response, "注册成功"));
+        } catch (Exception e) {
+            log.error("注册逻辑失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error("400", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<AuthResponse>> login(
+            @Valid @RequestBody LoginRequest request, BindingResult bindingResult) {
+        
+        // 如果参数校验失败，直接打印具体原因并返回 400
+        if (bindingResult.hasErrors()) {
+            String errorMsg = bindingResult.getFieldErrors().stream()
+                    .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                    .collect(Collectors.joining(", "));
+            log.error("参数校验失败: {}", errorMsg);
+            return ResponseEntity.badRequest().body(ApiResponse.error("400", errorMsg));
+        }
+
+        try {
+            AuthResponse response = authService.login(request);
+            return ResponseEntity.ok(ApiResponse.success(response, "登录成功"));
+        } catch (Exception e) {
+            log.error("登录逻辑失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error("401", e.getMessage()));
+        }
+    }
+}

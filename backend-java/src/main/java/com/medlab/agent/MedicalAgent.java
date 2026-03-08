@@ -1,11 +1,22 @@
 package com.medlab.agent;
 
-/**
- * 医疗AI智能体接口
- * 使用LangChain4j框架定义AI服务
- */
+import reactor.core.publisher.Flux;
+
 public interface MedicalAgent {
-    String analyzeReport(String reportContent);
+    // 基础对话
     String chat(String userQuery);
+    
+    // 流式对话
+    Flux<String> chatStream(String userQuery);
+    
+    // 报告分析
+    String analyzeReport(String reportContent);
+    
+    // 诊断建议
     String getDiagnosisSuggestion(String symptoms);
+    
+    // --- 之前报错就是因为少了下面这两个定义 ---
+    String getMedicalKnowledge(String topic);
+    
+    String explainMedicalTerm(String term);
 }
