@@ -5,13 +5,14 @@ import com.medlab.dto.request.RegisterRequest;
 import com.medlab.dto.response.ApiResponse;
 import com.medlab.dto.response.AuthResponse;
 import com.medlab.service.AuthService;
+import com.medlab.util.JwtTokenProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -22,6 +23,25 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
+    /**
+     * 验证当前 token 是否有效，返回用户信息
+     */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<Object>> me(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body(ApiResponse.error("401", "未提供有效的令牌"));
+        }
+        String token = authHeader.substring(7);
+        if (!jwtTokenProvider.validateToken(token)) {
+            return ResponseEntity.status(401).body(ApiResponse.error("401", "令牌无效或已过期"));
+        }
+        String username = jwtTokenProvider.getUsernameFromToken(token);
+        return ResponseEntity.ok(ApiResponse.success(username, "令牌有效"));
+    }
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(
