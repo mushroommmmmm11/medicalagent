@@ -31,10 +31,10 @@ public class JwtTokenProvider {
     /**
      * 生成 JWT Token
      */
-    public String generateToken(UUID userId, String username) {
+    public String generateToken(UUID userId, String idNumber) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId.toString());
-        claims.put("username", username);
+        claims.put("idNumber", idNumber);
         
         return createToken(claims, userId.toString());
     }
@@ -67,11 +67,11 @@ public class JwtTokenProvider {
     }
     
     /**
-     * 从 Token 中获取用户名
+     * 从 Token 中获取身份证号
      */
-    public String getUsernameFromToken(String token) {
+    public String getIdNumberFromToken(String token) {
         Claims claims = getAllClaimsFromToken(token);
-        return (String) claims.get("username");
+        return (String) claims.get("idNumber");
     }
     
     /**

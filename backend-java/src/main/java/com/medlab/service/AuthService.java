@@ -51,18 +51,11 @@ public class AuthService {
             throw new RuntimeException("该身份证号已被注册");
         }
         
-        // 用身份证号后8位作为用户名（确保唯一性）
-        String idNumberSuffix = request.getIdNumber().substring(request.getIdNumber().length() - 8);
-        String username = "user_" + idNumberSuffix;
-        
         // 创建新用户
         User user = new User();
-        user.setUsername(username);  // 自动生成用户名
-        user.setEmail(username + "@medlab.local");  // 自动生成邮箱
         user.setRealName(request.getRealName());
         user.setIdNumber(request.getIdNumber());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setStatus("ACTIVE");
         
         User savedUser = userRepository.save(user);
         
@@ -85,25 +78,16 @@ public class AuthService {
             throw new RuntimeException("身份证号或密码错误");
         }
         
-        // 检查账户状态
-        if (!"ACTIVE".equals(user.getStatus())) {
-            throw new RuntimeException("账户已被禁用");
-        }
-        
-        // 更新最后登录时间
-        user.updateLastLoginTime();
-        userRepository.save(user);
-        
-        log.info("用户登录成功: {}", user.getUsername());
+        log.info("用户登录成功: {}", user.getRealName());
         
         return buildAuthResponse(user);
     }
     
     /**
-     * 根据用户名获取用户信息
+     * 根据身份证号获取用户信息
      */
-    public UserInfoResponse getUserInfoByUsername(String username) {
-        User user = userRepository.findByUsername(username)
+    public UserInfoResponse getUserInfoByIdNumber(String idNumber) {
+        User user = userRepository.findByIdNumber(idNumber)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
         
         return convertToUserInfoResponse(user);
@@ -127,25 +111,15 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
         
-        // 只允许修改某些字段
         if (updateData.getRealName() != null) {
             user.setRealName(updateData.getRealName());
         }
-        if (updateData.getGender() != null) {
-            user.setGender(updateData.getGender());
-        }
-        if (updateData.getAge() != null) {
-            user.setAge(updateData.getAge());
-        }
-        if (updateData.getPhone() != null && !updateData.getPhone().equals(user.getPhone())) {
-            if (userRepository.existsByPhone(updateData.getPhone())) {
-                throw new RuntimeException("手机号已被注册");
-            }
-            user.setPhone(updateData.getPhone());
+        if (updateData.getDrugAllergy() != null) {
+            user.setDrugAllergy(updateData.getDrugAllergy());
         }
         
         User savedUser = userRepository.save(user);
-        log.info("用户信息更新成功: {}", savedUser.getUsername());
+        log.info("用户信息更新成功: {}", savedUser.getRealName());
         
         return convertToUserInfoResponse(savedUser);
     }
@@ -167,14 +141,14 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         
-        log.info("用户密码修改成功: {}", user.getUsername());
+        log.info("用户密码修改成功: {}", user.getRealName());
     }
     
     /**
      * 构建认证响应
      */
     private AuthResponse buildAuthResponse(User user) {
-        String token = jwtTokenProvider.generateToken(user.getId(), user.getUsername());
+        String token = jwtTokenProvider.generateToken(user.getId(), user.getIdNumber());
         
         return AuthResponse.builder()
                 .token(token)
@@ -191,7 +165,6 @@ public class AuthService {
         return UserInfoResponse.builder()
                 .id(user.getId())
                 .realName(user.getRealName())
-                .status(user.getStatus())
                 .build();
     }
 }

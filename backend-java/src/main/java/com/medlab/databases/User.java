@@ -5,7 +5,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -13,10 +12,9 @@ import java.util.UUID;
  * 对应数据库 users 表
  * 
  * 职责：
- * 1. 存储用户基本信息（用户名、邮箱、电话等）
- * 2. 存储加密后的密码哈希值
- * 3. 记录用户创建时间和最后登录时间
- * 4. 用户的身体信息（病历史、年龄、性别等）用于个性化的医疗建议
+ * 1. 存储用户注册信息（姓名、身份证号、密码）
+ * 2. 存储过敏药物信息
+ * 3. 记录用户一生的病历历史
  */
 @Entity
 @Table(name = "users")
@@ -30,60 +28,18 @@ public class User {
     @Column(columnDefinition = "UUID")
     private UUID id;
     
-    @Column(unique = true, nullable = false, length = 100)
-    private String username;
+    @Column(nullable = false, length = 100)
+    private String realName;
     
-    @Column(unique = true, nullable = false, length = 255)
-    private String email;
+    @Column(unique = true, nullable = false, length = 50)
+    private String idNumber;
     
     @Column(nullable = false, length = 255)
     private String passwordHash;
     
-    @Column(unique = true, length = 20)
-    private String phone;
-    
-    @Column(length = 100)
-    private String realName;
-    
-    @Column(length = 10)
-    private String gender;
-    
-    @Column
-    private Integer age;
-    
-    @Column(unique = true, length = 50)
-    private String idNumber;
-    
-    @Column(length = 50)
-    private String createRole = "USER";
-    
-    @Column(length = 50)
-    private String status = "ACTIVE";
-    
-    @Column(name = "last_login_time")
-    private LocalDateTime lastLoginTime;
-    
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
-    
-    @Column
-    private LocalDateTime updatedAt = LocalDateTime.now();
-    
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
-
     @Column(columnDefinition = "TEXT")
-    private String medicalHistory;
+    private String drugAllergy;
     
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
-    
-    /**
-     * 更新最后登录时间
-     */
-    public void updateLastLoginTime() {
-        this.lastLoginTime = LocalDateTime.now();
-    }
+    @Column(columnDefinition = "TEXT")
+    private String lifetimeMedicalHistory;
 }

@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -87,7 +89,38 @@ public class BailianQianwenService {
     }
 
     /**
-     * 关键修正：将所有参数“平铺”到 JSON 根部
+     * 多轮对话流式调用：接受完整的消息列表
+     */
+    public Flux<String> generateTextStreamWithMessages(List<Map<String, String>> chatMessages) {
+        try {
+            String requestBody = buildRequestBodyWithMessages(chatMessages);
+            log.info("Multi-turn Request Body: {}", requestBody);
+
+            return webClient.post()
+                    .uri(baseUrl)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody)
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+                    .retrieve()
+                    .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
+                    .map(event -> {
+                        String data = event.data();
+                        if (data == null || "[DONE]".equals(data)) return "";
+                        return parseJsonContent(data);
+                    })
+                    .filter(content -> !content.isEmpty())
+                    .onErrorResume(e -> {
+                        log.error("Stream error: {}", e.getMessage());
+                        return Flux.just("【AI 连接异常】");
+                    });
+        } catch (Exception e) {
+            return Flux.error(new RuntimeException("AI 初始化失败"));
+        }
+    }
+
+    /**
+     * 关键修正：将所有参数"平铺"到 JSON 根部
      */
     private String buildRequestBody(String prompt) throws Exception {
         ObjectNode root = objectMapper.createObjectNode();
@@ -100,10 +133,31 @@ public class BailianQianwenService {
         root.put("top_p", topP);
         
         ArrayNode messages = root.putArray("messages");
-        // 强制设置 MedLabAgent 身份，防止它“自我介绍”过短
+        // 强制设置 MedLabAgent 身份，防止它"自我介绍"过短
         messages.addObject().put("role", "system").put("content", "你是一个专业的医疗 AI 助手，名为 MedLabAgent。请详细、完整地回答用户问题。");
         messages.addObject().put("role", "user").put("content", prompt);
         
+        return objectMapper.writeValueAsString(root);
+    }
+
+    /**
+     * 构建多轮对话请求体
+     */
+    private String buildRequestBodyWithMessages(List<Map<String, String>> chatMessages) throws Exception {
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("model", model);
+        root.put("stream", true);
+        root.put("max_tokens", maxTokens);
+        root.put("temperature", temperature);
+        root.put("top_p", topP);
+
+        ArrayNode messages = root.putArray("messages");
+        for (Map<String, String> msg : chatMessages) {
+            messages.addObject()
+                    .put("role", msg.get("role"))
+                    .put("content", msg.get("content"));
+        }
+
         return objectMapper.writeValueAsString(root);
     }
 
