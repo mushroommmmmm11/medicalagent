@@ -26,6 +26,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        // 【修复】内部接口和公开接口直接放行，不需要 JWT 验证
+        String path = request.getRequestURI();
+        if (path.startsWith("/api/v1/internal/") || 
+            path.startsWith("/api/v1/auth/") ||
+            path.startsWith("/api/v1/agent/") ||
+            path.equals("/api/v1/health") ||
+            path.equals("/") ||
+            path.startsWith("/static/") ||
+            path.startsWith("/assets/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         String header = request.getHeader("Authorization");
 
         if (header != null && header.startsWith("Bearer ")) {

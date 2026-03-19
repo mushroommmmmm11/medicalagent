@@ -25,46 +25,8 @@ public class UserMedicalService {
     @Autowired
     private UserRepository userRepository;
     
-    /**
-     * 追加病历记录（用户确认后调用）
-     * 格式：日期,疾病,状态
-     * 例如：2026-03-09,高血压,未康复
-     *
-     * @param userId  用户ID
-     * @param disease 疾病名称
-     * @param status  状态（未康复/已康复/待观察）
-     */
-    @Transactional
-    public void appendMedicalHistory(UUID userId, String disease, String status) {
-        String record = LocalDate.now() + "," + disease + "," + status;
-        userRepository.appendMedicalHistory(userId, record);
-        log.info("追加病历记录: userId={}, record={}", userId, record);
-    }
-    
-    /**
-     * 追加病历记录（自定义格式，用于文件上传自动保存）
-     *
-     * @param userId 用户ID
-     * @param record 完整记录字符串
-     */
-    @Transactional
-    public void appendMedicalHistoryRaw(UUID userId, String record) {
-        userRepository.appendMedicalHistory(userId, record);
-        log.info("追加病历记录(raw): userId={}, record={}", userId, record);
-    }
-    
-    /**
-     * 更新过敏药物信息
-     *
-     * @param userId      用户ID
-     * @param drugAllergy 过敏药物（逗号分隔）
-     */
-    @Transactional
-    public void updateDrugAllergy(UUID userId, String drugAllergy) {
-        userRepository.updateDrugAllergy(userId, drugAllergy);
-        log.info("更新过敏药物: userId={}, drugAllergy={}", userId, drugAllergy);
-    }
-    
+
+
     /**
      * 获取用户的病历历史（供模型参考）
      *
@@ -72,9 +34,11 @@ public class UserMedicalService {
      * @return 病历历史字符串
      */
     public String getMedicalHistory(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-        return user.getLifetimeMedicalHistory();
+        if (!userRepository.existsById(userId)) {
+            throw new RuntimeException("用户不存在");
+        }
+        String history = userRepository.findLifetimeMedicalHistoryById(userId);
+        return history != null ? history : "";
     }
     
     /**
@@ -84,9 +48,11 @@ public class UserMedicalService {
      * @return 过敏药物字符串
      */
     public String getDrugAllergy(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-        return user.getDrugAllergy();
+        if (!userRepository.existsById(userId)) {
+            throw new RuntimeException("用户不存在");
+        }
+        String drug = userRepository.findDrugAllergyById(userId);
+        return drug != null ? drug : "";
     }
     
     /**
@@ -96,19 +62,23 @@ public class UserMedicalService {
      * @return 格式化的医疗摘要
      */
     public String getMedicalSummaryForAI(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-        
+        if (!userRepository.existsById(userId)) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        String drug = userRepository.findDrugAllergyById(userId);
+        String history = userRepository.findLifetimeMedicalHistoryById(userId);
+
         StringBuilder sb = new StringBuilder();
-        
-        if (user.getDrugAllergy() != null && !user.getDrugAllergy().isEmpty()) {
-            sb.append("【过敏药物】").append(user.getDrugAllergy()).append("\n");
+
+        if (drug != null && !drug.isEmpty()) {
+            sb.append("【过敏药物】").append(drug).append("\n");
         }
-        
-        if (user.getLifetimeMedicalHistory() != null && !user.getLifetimeMedicalHistory().isEmpty()) {
-            sb.append("【病历历史】").append(user.getLifetimeMedicalHistory());
+
+        if (history != null && !history.isEmpty()) {
+            sb.append("【病历历史】").append(history);
         }
-        
+
         return sb.toString();
     }
 }

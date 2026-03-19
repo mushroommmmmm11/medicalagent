@@ -41,7 +41,13 @@ public class SecurityConfig {
                 .requestMatchers("/", "/index.html", "/static/**", "/favicon.ico", "/assets/**").permitAll()
                 .requestMatchers("/api/v1/health").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                    
+                // 👇 新增这一行：允许 Python 服务访问内部数据接口
+                .requestMatchers("/api/v1/internal/**").permitAll()
+                // 允许前端对 Agent 的部分接口（聊天、流、分析、上传）在未登录时也能访问，以便支持匿名或有 token 的请求
+                .requestMatchers("/api/v1/agent/chat","/api/v1/agent/chat/stream","/api/v1/agent/analyze-report","/api/v1/agent/analyze","/api/v1/agent/upload-report").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
+                .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(frame -> frame.disable()))
@@ -53,8 +59,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // 允许所有本地开发地址
-        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:*", "http://127.0.0.1:*"));
+        // 允许所有来源访问（局域网部署）
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
