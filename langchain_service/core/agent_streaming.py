@@ -331,6 +331,30 @@ class MedicalAgent:
         # 核心提示词模板（包含 GAT 图推理注入、OCR 结果、结构化检验值）
         graph_section = f"\n【GAT 图推理指导】\n{graph_prompt_injection}" if graph_prompt_injection else ""
         react_section = f"\n【ReAct 多轮协作轨迹】\n{react_trace_section}" if react_trace_section else ""
+        followup_markers = (
+            "quote:",
+            "\u5f15\u7528\uff1a",
+            "\u5f15\u7528:",
+            "\u8bf7\u95ee",
+            "\u591a\u4e45",
+            "\u600e\u4e48",
+            "\u4e3a\u4ec0\u4e48",
+            "\u662f\u5426",
+            "\u80fd\u4e0d\u80fd",
+            "\u53ef\u4ee5",
+            "\uff1f",
+            "?",
+        )
+        is_followup_question = any(marker in query_for_model for marker in followup_markers)
+        response_contract = (
+            "FOLLOW_UP_MODE: Answer the user question directly first. Do not regenerate the full lab report. "
+            "Do not force the first line to be a diagnosis. If the query contains a quoted passage, treat it as context "
+            "and answer only the question related to that quote. Be concise and practical. "
+            "Mention that recovery-time estimates depend on symptoms and clinician judgement when relevant."
+        ) if is_followup_question else (
+            "FULL_REPORT_MODE: Provide a structured medical interpretation. Include key indicators, possible causes, risks, and advice. "
+            "Start with a main diagnosis and confidence, then provide details, and keep the META marker at the end."
+        )
         prompt = f"""当前用户ID：{user_id_info}
 【化验单 OCR 识别结果】：\n{ocr_section}
 【知识库检索结果】：{rag_result or "无相关知识库结果"}
@@ -338,9 +362,7 @@ class MedicalAgent:
     【结构化检验值】\n{lab_results_text}{graph_section}{react_section}
 【用户问题】：{query_for_model}
 
-请结合以上信息，给出结构化医学分析。建议包含关键指标判断、原因分析、风险关注及建议。
-回答第一行必须是“主诊断：xxx（置信度：xx%）”，再展开详细分析。
-最后单独输出一行 META 标记。"""
+Answer contract: {response_contract}"""
 
         messages = [
             SystemMessage(content=SYSTEM_PROMPT),
