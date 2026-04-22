@@ -350,10 +350,14 @@ class MedicalAgent:
             "FOLLOW_UP_MODE: Answer the user question directly first. Do not regenerate the full lab report. "
             "Do not force the first line to be a diagnosis. If the query contains a quoted passage, treat it as context "
             "and answer only the question related to that quote. Be concise and practical. "
-            "Mention that recovery-time estimates depend on symptoms and clinician judgement when relevant."
+            "Mention that recovery-time estimates depend on symptoms and clinician judgement when relevant. "
+            "For formatting, do not restart same-level numbered lists at 1. Use continuous numbering such as 1, 2, 3, "
+            "or use short headings with bullet points."
         ) if is_followup_question else (
             "FULL_REPORT_MODE: Provide a structured medical interpretation. Include key indicators, possible causes, risks, and advice. "
-            "Start with a main diagnosis and confidence, then provide details, and keep the META marker at the end."
+            "Start with a main diagnosis and confidence, then provide details, and keep the META marker at the end. "
+            "For formatting, do not restart same-level numbered lists at 1. Use continuous numbering such as 1, 2, 3, "
+            "or use short headings with bullet points."
         )
         prompt = f"""当前用户ID：{user_id_info}
 【化验单 OCR 识别结果】：\n{ocr_section}
