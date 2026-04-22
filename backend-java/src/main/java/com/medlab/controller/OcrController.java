@@ -4,7 +4,8 @@ import com.medlab.service.OcrServiceClient;
 import com.medlab.service.AnalyzeVisionResponse;
 import com.medlab.service.OcrServiceException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -34,11 +35,12 @@ import java.util.List;
  * ✅ 异步（当前）：方法返回 Mono/Flux，Spring 自动处理异步推送
  * ❌ 同步（传统）：阻塞线程，需要线程池支撑高并发
  */
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/ocr")
 @RequiredArgsConstructor
 public class OcrController {
+
+    private static final Logger log = LoggerFactory.getLogger(OcrController.class);
 
     private final OcrServiceClient ocrServiceClient;
 

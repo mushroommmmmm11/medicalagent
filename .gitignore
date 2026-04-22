@@ -51,3 +51,9 @@ config/*.secret
 secrets.yml
 .credentials
 .credentials.json
+
+# Local Codex/tooling config
+codex/
+
+# Local OCR replay artifacts may contain real report data
+test1/

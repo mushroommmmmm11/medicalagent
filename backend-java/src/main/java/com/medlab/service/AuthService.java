@@ -7,7 +7,8 @@ import com.medlab.dto.response.UserInfoResponse;
 import com.medlab.entity.User;
 import com.medlab.repository.UserRepository;
 import com.medlab.util.JwtTokenProvider;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,9 +24,10 @@ import java.util.UUID;
  * 2. 处理用户登录（密码验证、Token 生成）
  * 3. 管理用户信息更新
  */
-@Slf4j
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     
     @Autowired
     private UserRepository userRepository;

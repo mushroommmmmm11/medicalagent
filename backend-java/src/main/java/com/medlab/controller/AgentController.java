@@ -1,12 +1,12 @@
 package com.medlab.controller;
 
-import com.medlab.service.SessionChatService;
-import com.medlab.service.StorageService;
-import com.medlab.service.UserMedicalService;
+import com.medlab.service.AnalyzeVisionResponse;
+import com.medlab.service.LabReportInsightService;
+import com.medlab.service.LabReportInsightsResponse;
 import com.medlab.service.MedicalFacadeService;
+import com.medlab.service.SessionChatService;
+import com.medlab.service.UserMedicalService;
 import com.medlab.util.JwtTokenProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +14,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -24,6 +31,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -31,6 +40,10 @@ import java.util.concurrent.atomic.AtomicLong;
 public class AgentController {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentController.class);
+    private static final Pattern REPORT_FILE_URL_PATTERN = Pattern.compile(
+            "https?://[^\\s]+/api/v1/file/view/[^\\s]+",
+            Pattern.CASE_INSENSITIVE
+    );
 
     @Value("${langchain.service.url:http://localhost:8000}")
     private String langchainServiceUrl;
@@ -50,56 +63,62 @@ public class AgentController {
     @Autowired
     private MedicalFacadeService medicalFacadeService;
 
+    @Autowired
+    private LabReportInsightService labReportInsightService;
+
     private WebClient getWebClient() {
         return webClientBuilder.baseUrl(langchainServiceUrl).build();
     }
 
-    /**
-     * 流式聊天接口：负责提取用户ID并转发给 Python Agent
-     * 核心修复点：确保在 Lambda 表达式中使用 final 或 effectively final 变量来传递用户ID
-     * 注意：前端流式对话功能已改用 fetch 实现，完美支持 POST 请求和携带 Authorization Header
-     */
     @PostMapping(value = "/agent/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamChat(@RequestParam String userQuery,
-                                 @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public SseEmitter streamChat(
+            @RequestParam(required = false) String userQuery,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody(required = false) AgentChatRequest request
+    ) {
         SseEmitter emitter = new SseEmitter(0L);
-        
-        // 1. 尝试从 Token 中提取 userId
-        String currentUserId = null;
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            try {
-                String token = authHeader.substring(7);
-                if (jwtTokenProvider.validateToken(token)) {
-                    currentUserId = jwtTokenProvider.getUserIdFromToken(token).toString();
-                    logger.info("成功识别登录用户 ID: {}", currentUserId);
+
+        String queryText = firstNonBlank(userQuery, request != null ? request.getQuery() : null);
+        if (queryText == null) {
+            emitter.completeWithError(new IllegalArgumentException("userQuery is required"));
+            return emitter;
+        }
+
+        String currentUserId = resolveUserId(authHeader, request != null ? request.getUserId() : null);
+        AnalyzeVisionResponse ocrResult = request != null ? request.getOcrResult() : null;
+        if (ocrResult == null) {
+            String filePath = extractReportFilePath(queryText);
+            if (filePath != null) {
+                try {
+                    ocrResult = labReportInsightService.fetchOcrResponse(filePath);
+                    logger.info("Hydrated OCR result for stream chat from report URL: {}", filePath);
+                } catch (Exception ex) {
+                    logger.warn("Failed to prefetch OCR result for stream chat: {}", ex.getMessage());
                 }
-            } catch (Exception e) {
-                logger.warn("Token 解析失败，将以匿名模式继续: {}", e.getMessage());
             }
         }
 
-        // 2. 【核心修复】定义 final 变量供 Lambda 使用
-        final String finalUserId = currentUserId;
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("query", queryText);
+        if (currentUserId != null) {
+            requestBody.put("user_id", currentUserId);
+        }
+        if (ocrResult != null) {
+            requestBody.put("ocr_result", ocrResult);
+        }
+
         final long streamStartedAt = System.nanoTime();
         final AtomicLong lastChunkAt = new AtomicLong(streamStartedAt);
         final AtomicInteger chunkCounter = new AtomicInteger(0);
 
         try {
             WebClient client = getWebClient();
-
-            // 3. 构建请求并转发给 Python 侧
             client.post()
-                    .uri(uriBuilder -> {
-                        var builder = uriBuilder.path("/api/v1/agent/chat/stream")
-                                .queryParam("userQuery", userQuery);
-                        // 如果有用户ID，则挂载到 URL 参数中
-                        if (finalUserId != null) {
-                            builder.queryParam("userId", finalUserId);
-                        }
-                        return builder.build();
-                    })
+                    .uri("/api/v1/agent/chat/stream")
+                    .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", authHeader != null ? authHeader : "")
                     .accept(MediaType.TEXT_EVENT_STREAM)
+                    .bodyValue(requestBody)
                     .retrieve()
                     .bodyToFlux(String.class)
                     .subscribe(
@@ -119,12 +138,12 @@ public class AgentController {
                                             preview.replaceAll("\\s+", " ")
                                     );
                                     emitter.send(chunk);
-                                } catch (Exception e) {
-                                    emitter.completeWithError(e);
+                                } catch (Exception ex) {
+                                    emitter.completeWithError(ex);
                                 }
                             },
                             err -> {
-                                logger.error("转发 Python 流时发生错误: ", err);
+                                logger.error("Forwarding Python stream failed", err);
                                 emitter.completeWithError(err);
                             },
                             () -> {
@@ -137,17 +156,14 @@ public class AgentController {
                                 emitter.complete();
                             }
                     );
-        } catch (Exception e) {
-            logger.error("初始化 WebClient 请求失败: ", e);
-            emitter.completeWithError(e);
+        } catch (Exception ex) {
+            logger.error("Failed to initialize stream proxy", ex);
+            emitter.completeWithError(ex);
         }
-        
+
         return emitter;
     }
 
-    /**
-     * 内部调用接口：供 Python Agent 以后台方式查询病历
-     */
     @GetMapping("/internal/user/medical-history")
     public ResponseEntity<Map<String, String>> getMedicalHistoryById(@RequestParam("userId") String userId) {
         Map<String, String> resp = new HashMap<>();
@@ -169,7 +185,7 @@ public class AgentController {
             resp.put("drugAllergy", drug != null ? drug : "无已知过敏史");
             return ResponseEntity.ok(resp);
         } catch (Exception e) {
-            logger.warn("查询病历失败，降级返回默认历史 userId={}", userId, e);
+            logger.warn("Querying medical history failed, falling back to empty default. userId={}", userId, e);
             resp.put("status", "success");
             resp.put("medicalHistory", "暂无病历记录");
             resp.put("drugAllergy", "无已知过敏史");
@@ -185,17 +201,57 @@ public class AgentController {
         return ResponseEntity.ok(response);
     }
 
-    // 其他业务接口保持转发逻辑即可...
     @PostMapping("/agent/analyze")
-    public ResponseEntity<Map<String, String>> analyzeReport(@RequestParam String reportContent,
-                                                             @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<Map<String, String>> analyzeReport(
+            @RequestParam String reportContent,
+            @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
         return ResponseEntity.ok(sessionChatService.analyzeWithAuth(authHeader, reportContent));
     }
 
     @PostMapping("/agent/upload-report")
     public ResponseEntity<Map<String, String>> uploadReport(
             @RequestParam("file") MultipartFile file,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
         return ResponseEntity.ok(medicalFacadeService.handleUploadAndAppend(file, authHeader));
+    }
+
+    @GetMapping("/agent/report-insights")
+    public ResponseEntity<LabReportInsightsResponse> getReportInsights(@RequestParam String filePath) {
+        return ResponseEntity.ok(labReportInsightService.buildInsights(filePath));
+    }
+
+    private String resolveUserId(String authHeader, String fallbackUserId) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                if (jwtTokenProvider.validateToken(token)) {
+                    String userId = jwtTokenProvider.getUserIdFromToken(token).toString();
+                    logger.info("Resolved authenticated user ID: {}", userId);
+                    return userId;
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to parse token, fallback to request userId: {}", e.getMessage());
+            }
+        }
+        return firstNonBlank(fallbackUserId);
+    }
+
+    private String extractReportFilePath(String queryText) {
+        Matcher matcher = REPORT_FILE_URL_PATTERN.matcher(queryText);
+        if (!matcher.find()) {
+            return null;
+        }
+        return matcher.group().replaceAll("[,，。；;]+$", "");
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 }

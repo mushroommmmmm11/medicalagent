@@ -1,8 +1,6 @@
-version: "3.8"
-
 services:
   db:
-    image: ${POSTGRES_IMAGE:-docker.m.daocloud.io/postgres:15-alpine}
+    image: ${POSTGRES_IMAGE:-postgres:15-alpine}
     container_name: medlab-db
     restart: unless-stopped
     environment:
@@ -27,6 +25,9 @@ services:
     build:
       context: ../backend-java
       dockerfile: Dockerfile
+      args:
+        MAVEN_BASE_IMAGE: ${MAVEN_BASE_IMAGE:-m.daocloud.io/docker.io/library/maven:3.9-eclipse-temurin-17}
+        JAVA_RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-m.daocloud.io/docker.io/library/eclipse-temurin:17-jre-alpine}
     container_name: medlab-java-backend
     restart: unless-stopped
     environment:
@@ -34,11 +35,14 @@ services:
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-medlab_user}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-medlab_password}
       JWT_SECRET: ${JWT_SECRET}
+      SPRING_WEB_RESOURCES_STATIC_LOCATIONS: file:/app/static/
       UPLOAD_DIR: /app/uploads
       SERVER_URL: http://localhost:8080
-      OCR_ACCESS_URL: http://java-backend:8080
+      OCR_ACCESS_URL: http://127.0.0.1:8080
       LANGCHAIN_SERVICE_URL: http://python-langchain:8000
-      OCR_SERVICE_URL: http://python-ocr:8001
+      OCR_SERVICE_URL: http://172.18.0.1:18082
+      PYTHON_OCR_RESPONSE_TIMEOUT_SECONDS: 240
+      PYTHON_OCR_READ_TIMEOUT_SECONDS: 240
       JAVA_LOG_LEVEL: ${JAVA_LOG_LEVEL:-INFO}
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
@@ -53,6 +57,7 @@ services:
     networks:
       - medlab-network
     volumes:
+      - ../backend-java/src/main/resources/static:/app/static:ro
       - ./uploads:/app/uploads
       - medlab_java_logs:/app/logs
     healthcheck:
@@ -65,10 +70,17 @@ services:
     build:
       context: ../langchain_service
       dockerfile: Dockerfile
+      args:
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-m.daocloud.io/docker.io/library/python:3.11-slim}
     container_name: medlab-langchain
     restart: unless-stopped
     environment:
       PYTHONPATH: /app
+      LLM_API_KEY: ${LLM_API_KEY:-${DASHSCOPE_API_KEY}}
+      LLM_BASE_URL: http://172.18.0.1:18081/v1
+      LLM_MODEL: ${LLM_MODEL:-${DASHSCOPE_MODEL:-qwen-vl-plus-2025-05-07}}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-2000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
       DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen-vl-plus-2025-05-07}
       DATABASE_URL: postgresql://medlab_user:medlab_password@db:5432/medlab_db
@@ -77,7 +89,7 @@ services:
       SERVICE_HOST: 0.0.0.0
       SERVICE_PORT: 8000
       DOCKER_ENV: "true"
-      OCR_SERVICE_URL: http://python-ocr:8001
+      OCR_SERVICE_URL: http://172.18.0.1:18082
       GRAPH_SERVICE_URL: http://python-langchain:8000
       BACKEND_URL: http://java-backend:8080
       PYTHON_LOG_LEVEL: ${PYTHON_LOG_LEVEL:-INFO}
@@ -117,10 +129,14 @@ services:
       context: ../ai-services-python/ocr_service
       dockerfile: Dockerfile
       args:
-        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-docker.m.daocloud.io/library/python:3.11-bookworm}
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-m.daocloud.io/docker.io/library/python:3.11-slim}
     container_name: medlab-ocr
     restart: unless-stopped
     environment:
+      LLM_API_KEY: ${LLM_API_KEY:-${DASHSCOPE_API_KEY}}
+      LLM_BASE_URL: http://172.18.0.1:18081/v1
+      LLM_MODEL: ${LLM_MODEL:-${DASHSCOPE_MODEL:-qwen-vl-plus-2025-05-07}}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.5}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
       VISION_MODEL: ${VISION_MODEL:-qwen-vl-plus-2025-05-07}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -129,7 +145,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30}
-      LLM_API_TIMEOUT: ${LLM_API_TIMEOUT:-60}
+      LLM_API_TIMEOUT: 240
       OCR_CACHE_TTL_SECONDS: ${OCR_CACHE_TTL_SECONDS:-3600}
       PYTHON_LOG_LEVEL: ${PYTHON_LOG_LEVEL:-INFO}
     ports:
@@ -153,8 +169,66 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  python-ocr-egress:
+    image: medlab-python-ocr:latest
+    container_name: medlab-ocr-egress
+    restart: unless-stopped
+    network_mode: host
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "18082"]
+    environment:
+      LLM_API_KEY: ${LLM_API_KEY:-${DASHSCOPE_API_KEY}}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-${DASHSCOPE_MODEL:-qwen-vl-plus-2025-05-07}}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.5}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      VISION_MODEL: ${VISION_MODEL:-qwen-vl-plus-2025-05-07}
+      UPLOAD_DIR: /app/uploads
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30}
+      LLM_API_TIMEOUT: 240
+      OCR_CACHE_TTL_SECONDS: ${OCR_CACHE_TTL_SECONDS:-3600}
+      PYTHON_LOG_LEVEL: ${PYTHON_LOG_LEVEL:-INFO}
+    volumes:
+      - ./uploads:/app/uploads
+      - medlab_ocr_logs:/app/logs
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:18082/api/v1/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  llm-egress-proxy:
+    image: medlab-python-ocr:latest
+    container_name: medlab-llm-egress
+    restart: unless-stopped
+    network_mode: host
+    command: ["python", "/tools/llm_proxy.py", "--host", "0.0.0.0", "--port", "18081", "--env-file", "/app/.env"]
+    environment:
+      UPSTREAM_LLM_API_KEY: ${LLM_API_KEY:-${DASHSCOPE_API_KEY}}
+      UPSTREAM_LLM_BASE_URL: ${LLM_BASE_URL:-}
+    volumes:
+      - ../tools:/tools:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:18081/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   redis:
-    image: ${REDIS_IMAGE:-docker.m.daocloud.io/redis:7-alpine}
+    image: ${REDIS_IMAGE:-redis:7-alpine}
     container_name: medlab-redis
     restart: unless-stopped
     ports:

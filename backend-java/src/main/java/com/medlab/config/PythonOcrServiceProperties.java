@@ -1,10 +1,8 @@
 package com.medlab.config;
 
-import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@Data
-@ConfigurationProperties(prefix = "medlab.python-ocr")
+@ConfigurationProperties(prefix = "python-ocr")
 public class PythonOcrServiceProperties {
     
     /**
@@ -38,4 +36,52 @@ public class PythonOcrServiceProperties {
      * 最大内存缓冲（字节）- 用于解析响应体（5MB）
      */
     private int maxInMemorySize = 5 * 1024 * 1024;
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    public int getConnectTimeoutMillis() {
+        return connectTimeoutMillis;
+    }
+
+    public void setConnectTimeoutMillis(int connectTimeoutMillis) {
+        this.connectTimeoutMillis = connectTimeoutMillis;
+    }
+
+    public long getResponseTimeoutSeconds() {
+        return responseTimeoutSeconds;
+    }
+
+    public void setResponseTimeoutSeconds(long responseTimeoutSeconds) {
+        this.responseTimeoutSeconds = responseTimeoutSeconds;
+    }
+
+    public int getReadTimeoutSeconds() {
+        return readTimeoutSeconds;
+    }
+
+    public void setReadTimeoutSeconds(int readTimeoutSeconds) {
+        this.readTimeoutSeconds = readTimeoutSeconds;
+    }
+
+    public int getWriteTimeoutSeconds() {
+        return writeTimeoutSeconds;
+    }
+
+    public void setWriteTimeoutSeconds(int writeTimeoutSeconds) {
+        this.writeTimeoutSeconds = writeTimeoutSeconds;
+    }
+
+    public int getMaxInMemorySize() {
+        return maxInMemorySize;
+    }
+
+    public void setMaxInMemorySize(int maxInMemorySize) {
+        this.maxInMemorySize = maxInMemorySize;
+    }
 }

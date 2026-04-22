@@ -46,7 +46,7 @@ public class SecurityConfig {
                 // 👇 新增这一行：允许 Python 服务访问内部数据接口
                 .requestMatchers("/api/v1/internal/**").permitAll()
                 // 允许前端对 Agent 的部分接口（聊天、流、分析、上传）在未登录时也能访问，以便支持匿名或有 token 的请求
-                .requestMatchers("/api/v1/agent/chat","/api/v1/agent/chat/stream","/api/v1/agent/analyze-report","/api/v1/agent/analyze","/api/v1/agent/upload-report").permitAll()
+                .requestMatchers("/api/v1/agent/chat","/api/v1/agent/chat/stream","/api/v1/agent/analyze-report","/api/v1/agent/analyze","/api/v1/agent/upload-report","/api/v1/agent/report-insights").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()

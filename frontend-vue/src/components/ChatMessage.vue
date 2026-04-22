@@ -94,7 +94,8 @@ function formatTime(date) {
 .chat-message {
   display: flex;
   margin-bottom: 1rem;
-  align-items: flex-end;
+  align-items: flex-start;
+  width: 100%;
 }
 
 .chat-message.user {
@@ -110,83 +111,113 @@ function formatTime(date) {
   justify-content: center;
   margin-right: 0.5rem;
   font-size: 1.5rem;
+  flex: 0 0 32px;
+  margin-top: 2px;
 }
 
 .message-body {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: min(860px, 82%);
+}
+
+.chat-message.user .message-body {
+  max-width: min(720px, 72%);
 }
 
 .message-content {
-  max-width: 500px;
-  padding: 0.8rem 1.2rem;
-  border-radius: 12px;
-  word-wrap: break-word;
-  line-height: 1.5;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.9rem 1.1rem;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.7;
+  font-size: 15px;
+  box-sizing: border-box;
 }
 
 /* Markdown 样式支持 */
-.message-content h1,
-.message-content h2,
-.message-content h3,
-.message-content h4,
-.message-content h5,
-.message-content h6 {
-  margin: 0.5rem 0;
+.message-content :deep(h1),
+.message-content :deep(h2),
+.message-content :deep(h3),
+.message-content :deep(h4),
+.message-content :deep(h5),
+.message-content :deep(h6) {
+  margin: 0.35rem 0 0.7rem;
   font-weight: bold;
   line-height: 1.3;
 }
 
-.message-content h1 {
+.message-content :deep(h1) {
   font-size: 1.5rem;
   border-bottom: 2px solid;
   padding-bottom: 0.3rem;
 }
 
-.message-content h2 {
+.message-content :deep(h2) {
   font-size: 1.3rem;
 }
 
-.message-content h3 {
+.message-content :deep(h3) {
   font-size: 1.1rem;
 }
 
-.message-content code {
+.message-content :deep(p) {
+  margin: 0 0 0.65rem;
+}
+
+.message-content :deep(p:last-child),
+.message-content :deep(ul:last-child),
+.message-content :deep(ol:last-child) {
+  margin-bottom: 0;
+}
+
+.message-content :deep(code) {
   background-color: rgba(0, 0, 0, 0.05);
   padding: 2px 6px;
   border-radius: 4px;
   font-family: "Courier New", monospace;
   font-size: 0.9em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.message-content pre {
+.message-content :deep(pre) {
   background-color: rgba(0, 0, 0, 0.08);
   padding: 1rem;
   border-radius: 6px;
+  max-width: 100%;
   overflow-x: auto;
   border-left: 3px solid;
   font-family: "Courier New", monospace;
   font-size: 0.85em;
   line-height: 1.4;
+  box-sizing: border-box;
 }
 
-.message-content pre code {
+.message-content :deep(pre code) {
   background: none;
   padding: 0;
   border-radius: 0;
+  white-space: pre;
+  overflow-wrap: normal;
 }
 
-.message-content ul,
-.message-content ol {
-  margin: 0.5rem 0;
-  padding-left: 2rem;
+.message-content :deep(ul),
+.message-content :deep(ol) {
+  margin: 0.45rem 0 0.7rem;
+  padding-left: 1.25rem;
 }
 
-.message-content li {
-  margin: 0.3rem 0;
+.message-content :deep(li) {
+  margin: 0.25rem 0;
+  padding-left: 0.15rem;
 }
 
-.message-content blockquote {
+.message-content :deep(blockquote) {
   border-left: 4px solid;
   margin: 0.5rem 0;
   padding: 0 0.5rem 0 1rem;
@@ -194,25 +225,28 @@ function formatTime(date) {
   font-style: italic;
 }
 
-.message-content table {
+.message-content :deep(table) {
   border-collapse: collapse;
   margin: 0.5rem 0;
   font-size: 0.9em;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
-.message-content table th,
-.message-content table td {
+.message-content :deep(table th),
+.message-content :deep(table td) {
   border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 0.5rem;
   text-align: left;
 }
 
-.message-content table th {
+.message-content :deep(table th) {
   background-color: rgba(0, 0, 0, 0.05);
   font-weight: bold;
 }
 
-.message-content a {
+.message-content :deep(a) {
   text-decoration: underline;
   cursor: pointer;
   color: inherit;
@@ -225,8 +259,9 @@ function formatTime(date) {
 }
 
 .chat-message.assistant .message-content {
-  background-color: #e8e8e8;
-  color: #333;
+  background-color: #f2f3f5;
+  color: #252a31;
+  box-shadow: 0 4px 14px rgba(20, 27, 40, 0.06);
 }
 
 .timestamp {

@@ -4,10 +4,27 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _first_env(*names: str, default: str = "") -> str:
+    for name in names:
+        value = os.getenv(name)
+        if value is not None and value != "":
+            return value
+    return default
+
+
+def _normalize_openai_base_url(url: str) -> str:
+    normalized = (url or "").strip().rstrip("/")
+    if normalized.endswith("/chat/completions"):
+        return normalized[: -len("/chat/completions")]
+    return normalized
+
+
 class Settings(BaseSettings):
-    DASHSCOPE_API_KEY: str = ""
-    DASHSCOPE_MODEL: str = "qwen-vl-plus-2025-05-07"
-    DASHSCOPE_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    DASHSCOPE_API_KEY: str = _first_env("LLM_API_KEY", "DASHSCOPE_API_KEY", default="")
+    DASHSCOPE_MODEL: str = _first_env("LLM_MODEL", "DASHSCOPE_MODEL", default="qwen-vl-plus-2025-05-07")
+    DASHSCOPE_BASE_URL: str = _normalize_openai_base_url(
+        _first_env("LLM_BASE_URL", "DASHSCOPE_BASE_URL", default="https://dashscope.aliyuncs.com/compatible-mode/v1")
+    )
     USE_MOCK_LLM: bool = False  # 如果设为 True，使用 Mock LLM 而不真实调用 API
 
     # ========== 数据库配�?(支持 Docker 内部网络) ==========
@@ -31,8 +48,8 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 100
 
-    TEMPERATURE: float = 0.7
-    MAX_TOKENS: int = 2000
+    TEMPERATURE: float = float(_first_env("LLM_TEMPERATURE", default="0.7"))
+    MAX_TOKENS: int = int(_first_env("LLM_MAX_TOKENS", default="2000"))
 
     SERVICE_HOST: str = "0.0.0.0"
     SERVICE_PORT: int = 8000

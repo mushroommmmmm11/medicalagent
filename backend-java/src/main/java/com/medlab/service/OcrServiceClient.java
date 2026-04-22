@@ -1,8 +1,5 @@
 package com.medlab.service;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,13 +107,52 @@ public class OcrServiceClient {
                 .collectMap(Map.Entry::getKey, Map.Entry::getValue);
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
     static class AnalyzeVisionRequest {
         private String path;
         private String model;
         private boolean force_recheck;
         private String focus_item;
+
+        public AnalyzeVisionRequest() {
+        }
+
+        public AnalyzeVisionRequest(String path, String model, boolean force_recheck, String focus_item) {
+            this.path = path;
+            this.model = model;
+            this.force_recheck = force_recheck;
+            this.focus_item = focus_item;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
+        }
+
+        public boolean isForce_recheck() {
+            return force_recheck;
+        }
+
+        public void setForce_recheck(boolean force_recheck) {
+            this.force_recheck = force_recheck;
+        }
+
+        public String getFocus_item() {
+            return focus_item;
+        }
+
+        public void setFocus_item(String focus_item) {
+            this.focus_item = focus_item;
+        }
     }
 }
